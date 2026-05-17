@@ -3,6 +3,7 @@ const URL_PLACEHOLDER = "redacted";
 const TEXT_PLACEHOLDER = "[redacted]";
 const SENSITIVE_KEYS = [
   "token",
+  "_token",
   "access_token",
   "auth_token",
   "password",
@@ -43,10 +44,15 @@ export function collectSecrets(env) {
     try {
       const url = new URL(env.SCREEPS_SERVER_URL);
       if (url.username) {
-        values.push(url.username, decodeURIComponent(url.username));
+        values.push(url.username, safeDecodeURIComponent(url.username));
       }
       if (url.password) {
-        values.push(url.password, decodeURIComponent(url.password));
+        values.push(url.password, safeDecodeURIComponent(url.password));
+      }
+      for (const [name, value] of url.searchParams) {
+        if (isSensitiveKey(name)) {
+          values.push(value);
+        }
       }
     } catch {
       // Invalid URLs are represented generically in user-facing output.
@@ -112,6 +118,18 @@ function replaceSecret(value, secret) {
   }
 
   return value.split(secret).join(TEXT_PLACEHOLDER);
+}
+
+function isSensitiveKey(value) {
+  return SENSITIVE_KEYS.some((key) => key.toLowerCase() === String(value || "").toLowerCase());
+}
+
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function escapeRegExp(value) {
